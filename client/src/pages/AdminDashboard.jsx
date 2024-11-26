@@ -4,7 +4,6 @@ import {
   Box,
   Toolbar,
   Typography,
-  IconButton,
   CssBaseline,
   Drawer,
   List,
@@ -16,6 +15,8 @@ import {
   Divider,
   TextField,
   InputAdornment,
+  Button,
+  IconButton,
 } from "@mui/material";
 import {
   Dashboard,
@@ -27,13 +28,16 @@ import {
   Search,
   Logout,
 } from "@mui/icons-material";
-import { Outlet, Link } from "react-router-dom"; // Importando Link e Outlet para navegação
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const drawerWidth = 240;
 
 const AdminDashboard = () => {
   const [openGerenciamento, setOpenGerenciamento] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [probability, setProbability] = useState(null);
+  const [token, setToken] = useState(""); // Adicione um estado para o token
   const navigate = useNavigate();
 
   // Função para alternar a expansão/colapso
@@ -48,6 +52,35 @@ const AdminDashboard = () => {
 
     // Redireciona o usuário para a tela de login
     navigate("/");
+  };
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0]);
+  };
+
+  const handleTokenChange = (event) => {
+    setToken(event.target.value);
+  };
+
+  const handleSubmit = async () => {
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/predict",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`, // Inclua o token JWT no cabeçalho
+          },
+        }
+      );
+      setProbability(response.data.probability);
+    } catch (error) {
+      console.error("Error uploading the file:", error);
+    }
   };
 
   return (
@@ -161,6 +194,17 @@ const AdminDashboard = () => {
                   </ListItemIcon>
                   <ListItemText primary="Solicitações" />
                 </ListItem>
+                <ListItem
+                  button
+                  component={Link}
+                  to="/admin/upload"
+                  sx={{ pl: 4 }}
+                >
+                  <ListItemIcon>
+                    <Inbox />
+                  </ListItemIcon>
+                  <ListItemText primary="Upload de Imagem" />
+                </ListItem>
               </List>
             </Collapse>
           </List>
@@ -194,7 +238,7 @@ const AdminDashboard = () => {
         </Box>
       </Drawer>
 
-      {/* Conteúdo Principal (Componente Outlet vai renderizar as rotas aqui) */}
+      {/* Conteúdo Principal */}
       <Box
         component="main"
         sx={{
@@ -204,8 +248,32 @@ const AdminDashboard = () => {
         }}
       >
         <Toolbar />
-        <Outlet />{" "}
-        {/* O conteúdo correspondente à rota será renderizado aqui */}
+        {/* Componente de Upload de Imagem */}
+        <Box sx={{ padding: "10px" }}>
+          <Typography variant="h6">Upload an image to detect cancer</Typography>
+          <input type="file" onChange={handleFileChange} />
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Enter JWT Token"
+            value={token}
+            onChange={handleTokenChange}
+            sx={{ marginTop: "10px" }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            sx={{ marginTop: "10px" }}
+          >
+            Upload
+          </Button>
+          {probability !== null && (
+            <Typography variant="h6" sx={{ marginTop: "10px" }}>
+              Probability of Cancer: {probability.toFixed(2)}%
+            </Typography>
+          )}
+        </Box>
       </Box>
     </Box>
   );
